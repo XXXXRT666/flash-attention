@@ -29,3 +29,6 @@ var/
 
 # Dev
 venv
+
+.mypy_cache
+.vscode

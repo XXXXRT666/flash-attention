@@ -1,0 +1,247 @@
+# Modified From https://github.com/kingbri1/flash-attention/blob/main/.github/workflows/build-wheels.yml
+
+name: Build flash-attention Wheels
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag of flash-attention to build: (format: v2.3.4/v2.3.4.post1)'
+        default: 'v2.8.1'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build_sdist:
+    name: Build and Upload Source Code Distibution
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
+          ref: ${{ inputs.version }}
+          
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.11
+
+      - name: Build sdist
+        env:
+          FLASH_ATTENTION_SKIP_CUDA_BUILD: "TRUE"
+        run: |
+          wget "https://raw.githubusercontent.com/XXXXRT666/flash-attention/main/pyproject.toml"
+
+          sed -i 's|https://github.com/Dao-AILab/flash-attention/releases/download/{tag_name}/{wheel_name}|https://github.com/XXXXRT666/flash-attention/releases/download/{tag_name}/{wheel_name}|' setup.py
+
+          pip install ninja packaging wheel build
+          pip install setuptools==75.8.0
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+
+          python setup.py sdist --dist-dir=dist
+
+      - name: Upload files to a GitHub release
+        uses: svenstaro/upload-release-action@2.6.1
+        continue-on-error: true
+        with:
+          file: ./dist/*
+          tag: ${{ inputs.version }}
+          file_glob: true
+          overwrite: true
+          release_name: ${{ inputs.version }}
+
+  build_wheels:
+    name: Build wheels for OS ${{ matrix.os }}, Python ${{ matrix.pyver }}, CUDA ${{ matrix.cuda }}, and Torch ${{ matrix.torchver }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ["windows-2022", "ubuntu-22.04", "ubuntu-22.04-arm"]
+        pyver: ["3.10", "3.11", "3.12"]
+        cuda: ["12.9.0"]
+        torchver: ["2.5.1", "2.6.0", "2.7.1"]
+        cxx11_abi: ['FALSE', 'TRUE']
+        exclude:
+          - os: windows-2022
+            cxx11_abi: 'TRUE'
+    defaults:
+      run:
+        shell: pwsh
+    env:
+        CUDAVER: ${{ matrix.cuda }}
+        PCKGVER: ${{ inputs.version }}
+
+    steps:
+      - name: Allow long paths
+        run: git config --system core.longpaths true
+        if: runner.os == 'Windows'
+        
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
+          ref: ${{ inputs.version }} 
+
+      - name: Install VS2022 BuildTools 17.9.7
+        run: choco install -y visualstudio2022buildtools --version=117.9.7.0 --params "--add Microsoft.VisualStudio.Component.VC.Tools.x86.x64 --installChannelUri https://aka.ms/vs/17/release/180911598_-255012421/channel"
+        if: runner.os == 'Windows'
+
+      - name: Install Windows CUDA ${{ matrix.cuda }}
+        uses: Jimver/cuda-toolkit@v0.2.24
+        id: cuda-toolkit-win
+        with:
+          cuda: "${{ matrix.cuda }}"
+          method: "network"
+          sub-packages: '["nvcc", "cudart", "cublas", "cufft", "curand", "cusolver", "cusparse", "visual_studio_integration"]'
+        if: runner.os == 'Windows'
+
+      - name: Install Linux CUDA ${{ matrix.cuda }}
+        uses: Jimver/cuda-toolkit@v0.2.24
+        id: cuda-toolkit-Linux
+        with:
+          cuda: "${{ matrix.cuda }}"
+          linux-local-args: '["--toolkit"]'
+          method: "network"
+          sub-packages: '["nvcc"]'
+        if: runner.os != 'Windows'
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.pyver }}
+
+      - name: Install Dependencies
+        run: |
+          git config --system core.longpaths true
+
+          $torchVer = ("${{ matrix.torchver }}"-split '\.')[0..1] -join '.'
+
+          $maxv = @{
+              '2.5' = "124"
+              '2.6' = "126"
+              '2.7' = "128"
+          }
+          
+          $torchCudaVer = $maxv[$torchVer]
+
+          Write-Host "https://download.pytorch.org/whl/cu$torchCudaVer"
+
+          python -m ensurepip
+          pip install --no-cache-dir --upgrade build setuptools wheel packaging ninja psutil
+          pip install --no-cache-dir  "torch==${{ matrix.torchver }}" --index-url "https://download.pytorch.org/whl/cu$torchCudaVer"
+
+      - name: Build Wheel
+        id: build-wheel
+        run: |
+          # --- Spawn the VS shell
+
+          $setupPath = "setup.py"
+          $content = Get-Content $setupPath -Raw
+        
+          $code = @'
+            import re
+            from pathlib import Path
+            from packaging.version import parse
+            v = re.search(r"__version__ *= *[\"']([^\"']+)", Path("__init__.py").read_text()).group(1)
+            exit(0) if parse(v) <= parse("2.8.1") else exit(1)
+          '@
+
+          if ($IsWindows) {
+            Import-Module 'C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\Common7\Tools\Microsoft.VisualStudio.DevShell.dll'
+            Enter-VsDevShell -VsInstallPath 'C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools' -DevCmdArguments '-arch=x64 -host_arch=x64'
+            $env:DISTUTILS_USE_SDK=1
+
+            python -c $code
+
+            if ($LASTEXITCODE -eq 0) {
+                $content = $content -replace '("--use_fast_math",)',
+                                            '"--use_fast_math", "-Xcompiler", "/Zc:__cplusplus", '
+
+                $content = $content -replace '"cxx":\s*\[\s*"-O3",\s*"-std=c\+\+17"\s*\]',
+                                            '"cxx": ["-O2", "/std:c++17", "/Zc:__cplusplus", "/nologo"]'
+            } else {
+                $content = $content -replace 'compiler_c17_flag\s*=\s*\[\s*"-O2",\s*"/std:c\+\+17",\s*"/Zc:__cplusplus"\s*\]',
+                                            'compiler_c17_flag=["-O2", "/std:c++17", "/Zc:__cplusplus", "/nologo"]'
+            }
+
+            $content = $content -replace '("--use_fast_math",)',
+                                    '"--use_fast_math", "-Xcudafe", "--diag_suppress=221", "-Xcudafe", "--diag_suppress=177","-Xcudafe", "--diag_suppress=550", "-Xcompiler", "/nologo", '
+
+            $content = $content -replace '("build_ext"\s*:\s*)NinjaBuildExtension\b',
+                                    '${1}NinjaBuildExtension.with_options(use_ninja=True)'
+          }
+
+          $injection = @"
+          from torch.utils import cpp_extension
+          cpp_extension.COMMON_NVCC_FLAGS.clear()
+          "@
+            
+          $content = $content -replace '(?m)^from wheel\.bdist_wheel import bdist_wheel as _bdist_wheel\s*$',
+                                     "from wheel.bdist_wheel import bdist_wheel as _bdist_wheel`n$injection"
+
+          $macros = @(
+              '-DFLASHATTENTION_DISABLE_BACKWARD',
+              '-DFLASHATTENTION_DISABLE_DROPOUT',
+              '-DFLASHATTENTION_DISABLE_UNEVEN_K',
+              '-DFLASHATTENTION_DISABLE_LOCAL',
+              '-DFLASHATTENTION_DISABLE_ALIBI'
+          )
+
+          $lines = $content -split "`n"
+
+          foreach ($macro in $macros) {
+              for ($i = 0; $i -lt $lines.Length; $i++) {
+                  if ($lines[$i] -match "[`"']$macro[`"']" -and $lines[$i] -match '^\s*#') {
+                      $lines[$i] = ($lines[$i] -replace '^(\s*)#\s*', '$1')
+                      break
+                  }
+              }
+          }
+
+          $content = $lines -join "`n"
+
+          Set-Content $setupPath $content -Encoding UTF8
+
+          $cudaVersion = $env:CUDAVER.Split('.')[0]
+          $packageVersion = $env:PCKGVER.TrimStart('v')
+          
+          $env:CUDA_PATH = $env:CONDA_PREFIX
+          $env:CUDA_HOME = $env:CONDA_PREFIX
+
+          $torchver = '${{ matrix.torchver }}'.Split('.')[0,1] -join '.'
+          
+          $env:MAX_JOBS = '1'
+          $env:FLASH_ATTENTION_FORCE_BUILD = 'TRUE'
+          $env:FLASH_ATTENTION_FORCE_CXX11_ABI = '${{ matrix.cxx11_abi }}'
+          $env:BUILD_TARGET = "cuda"
+          $env:NVCC_THREADS = '2'
+
+          python -c "import torch.utils.cpp_extension;torch.utils.cpp_extension.is_ninja_available();torch.utils.cpp_extension.verify_ninja_availability()"
+
+          python setup.py bdist_wheel --dist-dir=dist
+          
+          $wheel = (gi '.\dist\*.whl')[0]
+          $wheelname = $wheel.name.replace("flash_attn-$packageVersion-","flash_attn-$packageVersion+cu$cudaVersion"+"torch$torchver"+"cxx11abi${{ matrix.cxx11_abi }}-")
+          Move-Item $wheel.fullname ".\dist\$wheelname"
+
+      - name: Log Built Wheels
+        run: |
+          ls dist
+          
+      - name: Upload files to a GitHub release
+        uses: svenstaro/upload-release-action@2.6.1
+        continue-on-error: true
+        with:
+          file: ./dist/*.whl
+          tag: ${{ inputs.version }}
+          file_glob: true
+          overwrite: true
+          release_name: ${{ inputs.version }}

@@ -1,34 +1,31 @@
 # Copyright (c) 2023, Tri Dao.
 
-import sys
-import functools
-import warnings
-import os
-import re
 import ast
+import functools
 import glob
-import shutil
-from pathlib import Path
-from packaging.version import parse, Version
+import os
 import platform
-
-from setuptools import setup, find_packages
+import re
+import shutil
 import subprocess
-
-import urllib.request
+import sys
 import urllib.error
-from wheel.bdist_wheel import bdist_wheel as _bdist_wheel
+import urllib.request
+import warnings
+from pathlib import Path
 
 import torch
+from packaging.version import Version, parse
+from setuptools import find_packages, setup
 from torch.utils.cpp_extension import (
+    CUDA_HOME,
+    IS_HIP_EXTENSION,
+    ROCM_HOME,
     BuildExtension,
     CppExtension,
     CUDAExtension,
-    CUDA_HOME,
-    ROCM_HOME,
-    IS_HIP_EXTENSION,
 )
-
+from wheel.bdist_wheel import bdist_wheel as _bdist_wheel
 
 with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
@@ -53,7 +50,7 @@ else:
 PACKAGE_NAME = "flash_attn"
 
 BASE_WHEEL_URL = (
-    "https://github.com/Dao-AILab/flash-attention/releases/download/{tag_name}/{wheel_name}"
+    "https://github.com/XXXXRT666/flash-attention/releases/download/{tag_name}/{wheel_name}"
 )
 
 # FORCE_BUILD: Force a fresh build locally, instead of attempting to find prebuilt wheels
