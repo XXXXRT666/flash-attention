@@ -7,7 +7,7 @@ on:
     inputs:
       version:
         description: 'Version tag of flash-attention to build: (format: v2.3.4/v2.3.4.post1)'
-        default: 'v2.8.1'
+        default: 'v2.8.3'
         required: true
         type: string
 
@@ -69,9 +69,6 @@ jobs:
         cuda: ["12.9.0"]
         torchver: ["2.5.1", "2.6.0", "2.7.1", "2.8.0"]
         cxx11_abi: ['FALSE', 'TRUE']
-        exclude:
-          - os: windows-2022
-            cxx11_abi: 'TRUE'
     defaults:
       run:
         shell: pwsh
