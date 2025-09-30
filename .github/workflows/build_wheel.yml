@@ -59,7 +59,7 @@ jobs:
           release_name: ${{ inputs.version }}
 
   build_wheels:
-    name: Build wheels for OS ${{ matrix.os }}, Python ${{ matrix.pyver }}, CUDA ${{ matrix.cuda }}, and Torch ${{ matrix.torchver }}
+    name: Build wheels for OS ${{ matrix.os }}, Python ${{ matrix.pyver }}, CUDA ${{ matrix.cuda }}, and Torch ${{ matrix.torchver }} with CXX11_ABI ${{ matrix.cxx11_abi }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
