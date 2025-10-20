@@ -67,7 +67,7 @@ jobs:
         os: ["windows-2022", "ubuntu-22.04", "ubuntu-22.04-arm"]
         pyver: ["3.10", "3.11", "3.12"]
         cuda: ["12.9.0"]
-        torchver: ["2.5.1", "2.6.0", "2.7.1", "2.8.0"]
+        torchver: ["2.6.0", "2.7.1", "2.8.0","2.9.0"]
         cxx11_abi: ['FALSE', 'TRUE']
     defaults:
       run:
@@ -122,10 +122,10 @@ jobs:
           $torchVer = ("${{ matrix.torchver }}"-split '\.')[0..1] -join '.'
 
           $maxv = @{
-              '2.5' = "124"
               '2.6' = "126"
               '2.7' = "128"
               '2.8' = "129"
+              '2.9' = "129"
           }
           
           $torchCudaVer = $maxv[$torchVer]
