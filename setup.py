@@ -55,7 +55,7 @@ else:
 PACKAGE_NAME = "flash_attn"
 
 BASE_WHEEL_URL = (
-    "https://github.com/Dao-AILab/flash-attention/releases/download/{tag_name}/{wheel_name}"
+    "https://github.com/XXXXRT666/flash-attention/releases/download/{tag_name}/{wheel_name}"
 )
 
 # FORCE_BUILD: Force a fresh build locally, instead of attempting to find prebuilt wheels
@@ -336,10 +336,11 @@ if not SKIP_CUDA_BUILD and not IS_ROCM:
         nvcc_flags.extend(["-Xcompiler", "/Zc:__cplusplus"])
         compiler_c17_flag=["-O2", "/std:c++17", "/Zc:__cplusplus"]
 
-    # Opt-in: disable building dropout and its dependent headers (ATen philox/RNG
-    # headers) from the FA2 build. This flag must be shared across both cxx and nvcc
-    # compilers, as FA2 is defined in both flash_api.cpp (cxx) and CUDA kernels.
+    # Feature flags must be shared across both cxx and nvcc compilers, as FA2 is
+    # defined in both flash_api.cpp (cxx) and CUDA kernels.
     feature_flags = []
+    if os.getenv("FLASH_ATTENTION_DISABLE_BACKWARD", "FALSE") == "TRUE":
+        feature_flags.append("-DFLASHATTENTION_DISABLE_BACKWARD")
     if os.getenv("FLASH_ATTENTION_DISABLE_DROPOUT", "FALSE") == "TRUE":
         feature_flags.append("-DFLASHATTENTION_DISABLE_DROPOUT")
 

@@ -8,9 +8,10 @@
 name: Build wheels and deploy
 
 on:
-  create:
-    tags:
-      - v*
+  workflow_dispatch:
+  # create:
+  #   tags:
+  #     - v*
 
 jobs:
   setup_release:
