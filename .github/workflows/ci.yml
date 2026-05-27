@@ -1,8 +1,7 @@
 name: CI
 
 on:
-  push:
-    branches: [main, ci-fix]
+  workflow_dispatch:
 
 permissions:
   contents: read
