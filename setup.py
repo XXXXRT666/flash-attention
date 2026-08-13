@@ -24,6 +24,7 @@ from wheel.bdist_wheel import bdist_wheel as _bdist_wheel
 import torch
 from torch.utils.cpp_extension import (
     BuildExtension,
+    COMMON_NVCC_FLAGS,
     CppExtension,
     CUDAExtension,
     CUDA_HOME,
@@ -333,8 +334,23 @@ if not SKIP_CUDA_BUILD and not IS_ROCM:
     compiler_c17_flag=["-O3", "-std=c++17"]
     # Add Windows-specific flags
     if sys.platform == "win32" and os.getenv('DISTUTILS_USE_SDK') == '1':
-        nvcc_flags.extend(["-Xcompiler", "/Zc:__cplusplus"])
-        compiler_c17_flag=["-O2", "/std:c++17", "/Zc:__cplusplus"]
+        conflicting_nvcc_defines = {
+            "-D__CUDA_NO_HALF_OPERATORS__",
+            "-D__CUDA_NO_HALF_CONVERSIONS__",
+            "-D__CUDA_NO_HALF2_OPERATORS__",
+            "-D__CUDA_NO_BFLOAT16_CONVERSIONS__",
+        }
+        COMMON_NVCC_FLAGS[:] = [
+            flag for flag in COMMON_NVCC_FLAGS
+            if flag not in conflicting_nvcc_defines
+        ]
+        nvcc_flags.extend([
+            "-D_USE_MATH_DEFINES",
+            "-Xcompiler", "/Zc:__cplusplus",
+        ])
+        compiler_c17_flag=[
+            "-O2", "/std:c++17", "/Zc:__cplusplus", "/D_USE_MATH_DEFINES"
+        ]
 
     # Feature flags must be shared across both cxx and nvcc compilers, as FA2 is
     # defined in both flash_api.cpp (cxx) and CUDA kernels.

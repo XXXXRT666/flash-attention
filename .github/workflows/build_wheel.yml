@@ -19,7 +19,7 @@ jobs:
     name: Validate FlashAttention version
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: 3.11
       - name: Require FlashAttention 2.8.3 or newer
@@ -47,14 +47,14 @@ jobs:
         shell: bash
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
           submodules: recursive
           ref: ${{ inputs.version }}
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: 3.11
 
@@ -148,7 +148,7 @@ jobs:
         run: git config --system core.longpaths true
         if: runner.os == 'Windows'
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
           submodules: recursive
@@ -177,7 +177,7 @@ jobs:
         if: runner.os != 'Windows'
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.pyver }}
 
@@ -206,8 +206,8 @@ jobs:
             Enter-VsDevShell -VsInstallPath 'C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools' -DevCmdArguments '-arch=x64 -host_arch=x64'
             $env:DISTUTILS_USE_SDK=1
 
-            $content = $content -replace 'compiler_c17_flag\s*=\s*\[\s*"-O2",\s*"/std:c\+\+17",\s*"/Zc:__cplusplus"\s*\]',
-                                        'compiler_c17_flag=["-O2", "/std:c++17", "/Zc:__cplusplus", "/Zc:preprocessor", "/nologo"]'
+            $content = $content -replace 'compiler_c17_flag\s*=\s*\[\s*"-O2",\s*"/std:c\+\+17",\s*"/Zc:__cplusplus",\s*"/D_USE_MATH_DEFINES"\s*\]',
+                                        'compiler_c17_flag=["-O2", "/std:c++17", "/Zc:__cplusplus", "/D_USE_MATH_DEFINES", "/Zc:preprocessor", "/nologo"]'
 
             $content = $content -replace '("--use_fast_math",)',
                                     '"--use_fast_math", "-Xcudafe", "--diag_suppress=221", "-Xcudafe", "--diag_suppress=177","-Xcudafe", "--diag_suppress=550", "-Xcompiler", "/nologo", "-Xcompiler", "/Zc:preprocessor", '
