@@ -359,6 +359,12 @@ if not SKIP_CUDA_BUILD and not IS_ROCM:
         feature_flags.append("-DFLASHATTENTION_DISABLE_BACKWARD")
     if os.getenv("FLASH_ATTENTION_DISABLE_DROPOUT", "FALSE") == "TRUE":
         feature_flags.append("-DFLASHATTENTION_DISABLE_DROPOUT")
+    if os.getenv("FLASH_ATTENTION_DISABLE_ALIBI", "FALSE") == "TRUE":
+        feature_flags.append("-DFLASHATTENTION_DISABLE_ALIBI")
+    if os.getenv("FLASH_ATTENTION_DISABLE_UNEVEN_K", "FALSE") == "TRUE":
+        feature_flags.append("-DFLASHATTENTION_DISABLE_UNEVEN_K")
+    if os.getenv("FLASH_ATTENTION_DISABLE_LOCAL", "FALSE") == "TRUE":
+        feature_flags.append("-DFLASHATTENTION_DISABLE_LOCAL")
 
     ext_modules.append(
         CUDAExtension(

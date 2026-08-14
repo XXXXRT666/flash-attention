@@ -142,6 +142,9 @@ jobs:
         PCKGVER: ${{ inputs.version }}
         FLASH_ATTENTION_DISABLE_BACKWARD: "TRUE"
         FLASH_ATTENTION_DISABLE_DROPOUT: "TRUE"
+        FLASH_ATTENTION_DISABLE_ALIBI: "TRUE"
+        FLASH_ATTENTION_DISABLE_UNEVEN_K: "TRUE"
+        FLASH_ATTENTION_DISABLE_LOCAL: "TRUE"
 
     steps:
       - name: Allow long paths
